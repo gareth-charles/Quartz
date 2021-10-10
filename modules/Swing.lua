@@ -62,6 +62,7 @@ local defaults = {
 	profile = {
 		barcolor = {1, 1, 1},
 		autobarcolor = {1, 0, 0},
+		alwaysvisible = false,
 		swingalpha = 1,
 		swingheight = 4,
 		swingposition = "top",
@@ -82,7 +83,13 @@ local function OnUpdate()
 		remainingtext:SetFormattedText("%.1f", duration - spent)
 		local perc = spent / duration
 		if perc > 1 then
-			return swingbar:Hide()
+			if db.alwaysvisible then
+				swingbar:SetScript("OnUpdate", nil)
+				remainingtext:SetText("")
+				swingstatusbar:SetValue(0)
+			else
+				swingbar:Hide()
+			end
 		else
 			swingstatusbar:SetValue(perc)
 		end
@@ -95,7 +102,13 @@ local function OnAutoUpdate()
 		autoremainingtext:SetFormattedText("%.1f", autoduration - spent)
 		local perc = spent / autoduration
 		if perc > 1 then
-			return autobar:Hide()
+			if db.alwaysvisible then
+				autobar:SetScript("OnUpdate", nil)
+				autoremainingtext:SetText("")
+				autostatusbar:SetValue(0)
+			else
+				autobar:Hide()
+			end
 		else
 			autostatusbar:SetValue(perc)
 		end
@@ -274,14 +287,22 @@ function Swing:MeleeSwing()
 	duration = UnitAttackSpeed("player")
 	durationtext:SetFormattedText("%.1f", duration)
 	starttime = GetTime()
-	swingbar:Show()
+	if (db.alwaysvisible) then
+		swingbar:SetScript("OnUpdate", OnUpdate)
+	else
+		swingbar:Show()
+	end
 end
 
 function Swing:Shoot()
 	autoduration = UnitRangedDamage("player")
 	autodurationtext:SetFormattedText("%.1f", autoduration)
 	autostarttime = GetTime()
-	autobar:Show()
+	if (db.alwaysvisible) then
+		autobar:SetScript("OnUpdate", OnAutoUpdate)
+	else
+		autobar:Show()
+	end
 end
 
 function Swing:ApplySettings()
@@ -385,6 +406,16 @@ function Swing:ApplySettings()
 		autoremainingtext:SetTextColor(1,1,1)
 		autoremainingtext:SetNonSpaceWrap(false)
 		autoremainingtext:SetWidth(autobar_width)
+
+		if (db.alwaysvisible) then
+			swingbar:Show()
+			swingstatusbar:SetValue(0)
+			autobar:Show()
+			autostatusbar:SetValue(0)
+		else
+			swingbar:Hide()
+			autobar:Hide()
+		end
 	end
 end
 
@@ -548,6 +579,12 @@ do
 				name = L["Remaining Text"],
 				desc = L["Toggle display of text showing the time remaining until you can swing again"],
 				order = 110,
+			},
+			alwaysvisible = {
+				type = "toggle",
+				name = L["Always Visible"],
+				desc = L["Toggle display of swing bars to always on"],
+				order = 111,
 			},
 		},
 	}
