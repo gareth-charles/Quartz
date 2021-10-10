@@ -210,6 +210,7 @@ L["Set the color of the latency text"] = "지연 시간 글씨의 색상을 설�
 L["Set the color of the no interrupt casting bar border"] = "취소없을 경우 시전바 테두리의 색상을 변경합니다."
 L["Set the color of the %s"] = "%s의 색상을 설정합니다."
 L["Set the color of the swing timer bar"] = "공격 속도 바의 색상을 설정합니다."
+L["Set the color of the swing timer bar for auto shot"] = "자동 촬영을 위한 막대 색상을 정의합니다."
 L["Set the color of the text for the buff bars"] = "버프바에 대한 글씨의 색상을 설정합니다."
 L["Set the color of the text for the mirror bars"] = "미러바에 대한 글씨의 색상을 설정합니다."
 L["Set the color the cast bar is changed to when you have a spell interrupted"] = "주문이 차단 되었을 때 변경할 시전바의 색상을 설정합니다."

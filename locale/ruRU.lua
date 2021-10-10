@@ -210,6 +210,7 @@ L["Set the color of the latency text"] = "Установить цвет текс
 L["Set the color of the no interrupt casting bar border"] = "Установка цвета окантовки для полосы произнесения несбиваемых заклинаний."
 L["Set the color of the %s"] = "Установить цвет %s"
 L["Set the color of the swing timer bar"] = "Установите цвет для полосы времени замаха (взмах оружием, натягивание тетивы, зарядка оружия)"
+L["Set the color of the swing timer bar for auto shot"] = "Определяет цвет полосы для автоматической съемки"
 L["Set the color of the text for the buff bars"] = "Установить цвет текста для полосы баффов"
 L["Set the color of the text for the mirror bars"] = "Установить цвет текста для зеркальной полоски"
 L["Set the color the cast bar is changed to when you have a spell interrupted"] = "Установка цвета полосы применения когда применяемое умение прерывается"

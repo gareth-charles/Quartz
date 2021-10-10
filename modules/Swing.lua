@@ -50,6 +50,8 @@ local resetautoshotspells = {
 }
 
 local swingbar, swingbar_width, swingstatusbar, remainingtext, durationtext
+local autobar, autostatusbar, autodurationtext, autoremainingtext, autobar_width
+local autostarttime, autoduration
 local swingmode -- nil is none, 0 is meleeing, 1 is autoshooting
 local starttime, duration
 local slamstart
@@ -59,6 +61,7 @@ local db, getOptions
 local defaults = {
 	profile = {
 		barcolor = {1, 1, 1},
+		autobarcolor = {1, 0, 0},
 		swingalpha = 1,
 		swingheight = 4,
 		swingposition = "top",
@@ -86,12 +89,33 @@ local function OnUpdate()
 	end
 end
 
+local function OnAutoUpdate()
+	if autostarttime then
+		local spent = GetTime() - autostarttime
+		autoremainingtext:SetFormattedText("%.1f", autoduration - spent)
+		local perc = spent / autoduration
+		if perc > 1 then
+			return autobar:Hide()
+		else
+			autostatusbar:SetValue(perc)
+		end
+	end
+end
+
 local function OnHide()
 	swingbar:SetScript("OnUpdate", nil)
 end
 
 local function OnShow()
 	swingbar:SetScript("OnUpdate", OnUpdate)
+end
+
+local function OnAutoHide()
+	autobar:SetScript("OnUpdate", nil)
+end
+
+local function OnAutoShow()
+	autobar:SetScript("OnUpdate", OnAutoUpdate)
 end
 
 function Swing:OnInitialize()
@@ -132,11 +156,26 @@ function Swing:OnEnable()
 		swingbar:RegisterForDrag("LeftButton")
 		swingbar:SetClampedToScreen(true)
 		
-		swingstatusbar = CreateFrame("StatusBar", nil, swingbar)
+		swingstatusbar = CreateFrame("StatusBar", "MeleeStatusBar", swingbar)
 		
 		durationtext = swingstatusbar:CreateFontString(nil, "OVERLAY")
 		remainingtext = swingstatusbar:CreateFontString(nil, "OVERLAY")
 		swingbar:Hide()
+	end
+	if not autobar then
+		autobar = CreateFrame("Frame", "Quartz3AutoBar", UIParent)
+		autobar:SetFrameStrata("HIGH")
+		autobar:SetScript("OnShow", OnAutoShow)
+		autobar:SetScript("OnHide", OnAutoHide)
+		autobar:SetMovable(true)
+		autobar:RegisterForDrag("LeftButton")
+		autobar:SetClampedToScreen(true)
+		
+		autostatusbar = CreateFrame("StatusBar", "AutoStatusBar", autobar)
+		
+		autodurationtext = autostatusbar:CreateFontString(nil, "OVERLAY")
+		autoremainingtext = autostatusbar:CreateFontString(nil, "OVERLAY")
+		autobar:Hide()
 	end
 	self:ApplySettings()
 end
@@ -188,18 +227,18 @@ end
 
 function Swing:UNIT_SPELLCAST_SUCCEEDED(event, unit, spell)
 	if unit ~= "player" then return end
-	if swingmode == 0 then
-		if resetspells[spell] then
-			self:MeleeSwing()
-		elseif spell == slam and slamstart then
-			starttime = starttime + GetTime() - slamstart
-			slamstart = nil
-		end
-	elseif swingmode == 1 then
-		if spell == autoshotname then
-			self:Shoot()
-		end
+	
+	if resetspells[spell] then
+		self:MeleeSwing()
+	elseif spell == slam and slamstart then
+		starttime = starttime + GetTime() - slamstart
+		slamstart = nil
 	end
+	
+	if spell == autoshotname then
+		self:Shoot()
+	end
+	
 	if resetautoshotspells[spell] then
 		swingmode = 1
 		self:Shoot()
@@ -239,10 +278,10 @@ function Swing:MeleeSwing()
 end
 
 function Swing:Shoot()
-	duration = UnitRangedDamage("player")
-	durationtext:SetFormattedText("%.1f", duration)
-	starttime = GetTime()
-	swingbar:Show()
+	autoduration = UnitRangedDamage("player")
+	autodurationtext:SetFormattedText("%.1f", autoduration)
+	autostarttime = GetTime()
+	autobar:Show()
 end
 
 function Swing:ApplySettings()
@@ -256,13 +295,25 @@ function Swing:ApplySettings()
 		swingbar:SetBackdropColor(0,0,0)
 		swingbar:SetAlpha(db.swingalpha)
 		swingbar:SetScale(Player.db.profile.scale)
+		
+		autobar:ClearAllPoints()
+		autobar:SetHeight(db.swingheight)
+		autobar_width = Player.Bar:GetWidth() - 8
+		autobar:SetWidth(autobar_width)
+		autobar:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16})
+		autobar:SetBackdropColor(0,0,0)
+		autobar:SetAlpha(db.swingalpha)
+		autobar:SetScale(Player.db.profile.scale)
 
 		if db.swingposition == "bottom" then
 			swingbar:SetPoint("TOP", Player.Bar, "BOTTOM", 0, -1 * db.swinggap)
+			autobar:SetPoint("BOTTOM", Player.Bar, "TOP", 0, db.swinggap)
 		elseif db.swingposition == "top" then
 			swingbar:SetPoint("BOTTOM", Player.Bar, "TOP", 0, db.swinggap)
+			autobar:SetPoint("TOP", Player.Bar, "BOTTOM", 0, -1 * db.swinggap)
 		else -- L["Free"]
 			swingbar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", db.x, db.y)
+			autobar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", db.x, db.y + db.swingheight)
 		end
 		
 		swingstatusbar:SetAllPoints(swingbar)
@@ -272,13 +323,26 @@ function Swing:ApplySettings()
 		swingstatusbar:SetStatusBarColor(unpack(db.barcolor))
 		swingstatusbar:SetMinMaxValues(0, 1)
 		
+		autostatusbar:SetAllPoints(autobar)
+		autostatusbar:SetStatusBarTexture(media:Fetch("statusbar", Player.db.profile.texture))
+		autostatusbar:GetStatusBarTexture():SetHorizTile(false)
+		autostatusbar:GetStatusBarTexture():SetVertTile(false)
+		autostatusbar:SetStatusBarColor(unpack(db.autobarcolor))
+		autostatusbar:SetMinMaxValues(0, 1)
+
 		if db.durationtext then
 			durationtext:Show()
 			durationtext:ClearAllPoints()
 			durationtext:SetPoint("BOTTOMLEFT", swingbar, "BOTTOMLEFT")
 			durationtext:SetJustifyH("LEFT")
+			
+			autodurationtext:Show()
+			autodurationtext:ClearAllPoints()
+			autodurationtext:SetPoint("BOTTOMLEFT", autobar, "BOTTOMLEFT")
+			autodurationtext:SetJustifyH("LEFT")
 		else
 			durationtext:Hide()
+			autodurationtext:Hide()
 		end
 		durationtext:SetFont(media:Fetch("font", Player.db.profile.font), 9)
 		durationtext:SetShadowColor( 0, 0, 0, 1)
@@ -287,13 +351,26 @@ function Swing:ApplySettings()
 		durationtext:SetNonSpaceWrap(false)
 		durationtext:SetWidth(swingbar_width)
 		
+		autodurationtext:SetFont(media:Fetch("font", Player.db.profile.font), 9)
+		autodurationtext:SetShadowColor( 0, 0, 0, 1)
+		autodurationtext:SetShadowOffset( 0.8, -0.8 )
+		autodurationtext:SetTextColor(1,1,1)
+		autodurationtext:SetNonSpaceWrap(false)
+		autodurationtext:SetWidth(autobar_width)
+		
 		if db.remainingtext then
 			remainingtext:Show()
 			remainingtext:ClearAllPoints()
 			remainingtext:SetPoint("BOTTOMRIGHT", swingbar, "BOTTOMRIGHT")
 			remainingtext:SetJustifyH("RIGHT")
+			
+			autoremainingtext:Show()
+			autoremainingtext:ClearAllPoints()
+			autoremainingtext:SetPoint("BOTTOMRIGHT", autobar, "BOTTOMRIGHT")
+			autoremainingtext:SetJustifyH("RIGHT")
 		else
 			remainingtext:Hide()
+			autoremainingtext:Hide()
 		end
 		remainingtext:SetFont(media:Fetch("font", Player.db.profile.font), 9)
 		remainingtext:SetShadowColor( 0, 0, 0, 1)
@@ -301,6 +378,13 @@ function Swing:ApplySettings()
 		remainingtext:SetTextColor(1,1,1)
 		remainingtext:SetNonSpaceWrap(false)
 		remainingtext:SetWidth(swingbar_width)
+
+		autoremainingtext:SetFont(media:Fetch("font", Player.db.profile.font), 9)
+		autoremainingtext:SetShadowColor( 0, 0, 0, 1)
+		autoremainingtext:SetShadowOffset( 0.8, -0.8 )
+		autoremainingtext:SetTextColor(1,1,1)
+		autoremainingtext:SetNonSpaceWrap(false)
+		autoremainingtext:SetWidth(autobar_width)
 	end
 end
 
@@ -360,6 +444,14 @@ do
 				type = "color",
 				name = L["Bar Color"],
 				desc = L["Set the color of the swing timer bar"],
+				get = getColor,
+				set = setColor,
+				order = 103,
+			},
+			autobarcolor = {
+				type = "color",
+				name = L["Auto Shot Bar Color"],
+				desc = L["Set the color of the swing timer bar for auto shot"],
 				get = getColor,
 				set = setColor,
 				order = 103,
