@@ -210,6 +210,7 @@ L["Set the color of the latency text"] = "Choisit la couleur du texte de latence
 L["Set the color of the no interrupt casting bar border"] = "Règle la couleur de la bordure des barres d'incantation non interruptibles"
 L["Set the color of the %s"] = "Choisit la couleur de %s"
 L["Set the color of the swing timer bar"] = "Définit la couleur de la barre du swing"
+L["Set the color of the swing timer bar for auto shot"] = "Définit la couleur de la barre du auto shot"
 L["Set the color of the text for the buff bars"] = "Règle la couleur du texte des barres de buffs"
 L["Set the color of the text for the mirror bars"] = "Choisit la couleur utilisée pour le texte des barres miroir"
 L["Set the color the cast bar is changed to when you have a spell interrupted"] = "Définit la couleur de la barre d'incantation lorsque votre sort est interrompu"
