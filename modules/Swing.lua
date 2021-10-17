@@ -52,6 +52,7 @@ local resetautoshotspells = {
 local swingbar, swingbar_width, swingstatusbar, remainingtext, durationtext
 local autobar, autostatusbar, autodurationtext, autoremainingtext, autobar_width
 local autostarttime, autoduration
+local swingbaricon, autobaricon
 local swingmode -- nil is none, 0 is meleeing, 1 is autoshooting
 local starttime, duration
 local slamstart
@@ -67,9 +68,12 @@ local defaults = {
 		swingheight = 4,
 		swingposition = "top",
 		swinggap = -4,
+		iconsize = 14,
+		iconoffsetx = 4,
 		
 		durationtext = true,
 		remainingtext = true,
+		showicons = true,
 		
 		x = 300,
 		y = 300,
@@ -160,6 +164,7 @@ function Swing:OnEnable()
 	end
 	
 	self:RegisterEvent("UNIT_ATTACK")
+	self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 	if not swingbar then
 		swingbar = CreateFrame("Frame", "Quartz3SwingBar", UIParent)
 		swingbar:SetFrameStrata("HIGH")
@@ -169,6 +174,8 @@ function Swing:OnEnable()
 		swingbar:RegisterForDrag("LeftButton")
 		swingbar:SetClampedToScreen(true)
 		
+		swingbaricon = swingbar:CreateTexture("SwingBarTexture", "OVERLAY")
+	
 		swingstatusbar = CreateFrame("StatusBar", "MeleeStatusBar", swingbar)
 		
 		durationtext = swingstatusbar:CreateFontString(nil, "OVERLAY")
@@ -183,6 +190,8 @@ function Swing:OnEnable()
 		autobar:SetMovable(true)
 		autobar:RegisterForDrag("LeftButton")
 		autobar:SetClampedToScreen(true)
+		
+		autobaricon = autobar:CreateTexture("AutoBarTexture", "OVERLAY")
 		
 		autostatusbar = CreateFrame("StatusBar", "AutoStatusBar", autobar)
 		
@@ -283,6 +292,17 @@ function Swing:UNIT_ATTACK(event, unit)
 	end
 end
 
+function Swing:PLAYER_EQUIPMENT_CHANGED(slotId, emptiedSlot)
+	local mainHandId = 16;
+	local rangedWeaponId = 18;
+	if (slotId == mainHandId or
+		slotId == rangedWeaponId or
+		emptiedSlot == mainHandId or
+		emptiedSlot == rangedWeaponId) then
+		Swing:UpdateIcons()
+	end
+end
+
 function Swing:MeleeSwing()
 	duration = UnitAttackSpeed("player")
 	durationtext:SetFormattedText("%.1f", duration)
@@ -302,6 +322,28 @@ function Swing:Shoot()
 		autobar:SetScript("OnUpdate", OnAutoUpdate)
 	else
 		autobar:Show()
+	end
+end
+
+function Swing:UpdateIcons()
+	local mainHandId = 16;
+	local meleeTexture = GetInventoryItemTexture("player", mainHandId)
+	if (not meleeTexture) then
+		-- fallback icon for no weapon equipped
+		meleeTexture = "Interface\\Icons\\inv_gauntlets_04"
+	end
+	swingbaricon:SetTexture(meleeTexture)
+	
+	local rangedWeaponId = 18;
+	local rangedTexture = GetInventoryItemTexture("player", rangedWeaponId)
+	autobaricon:SetTexture(rangedTexture)
+
+	if (db.alwaysvisible) then
+		if (not rangedTexture) then
+			autobar:Hide()
+		else
+			autobar:Show()
+		end
 	end
 end
 
@@ -334,7 +376,11 @@ function Swing:ApplySettings()
 			autobar:SetPoint("TOP", Player.Bar, "BOTTOM", 0, -1 * db.swinggap)
 		else -- L["Free"]
 			swingbar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", db.x, db.y)
-			autobar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", db.x, db.y + db.swingheight)
+			local yOffset = db.iconsize
+			if (yOffset < db.swingheight) then
+				yOffset = db.swingheight
+			end
+			autobar:SetPoint("BOTTOM", swingbar, "TOP", 0, yOffset)
 		end
 		
 		swingstatusbar:SetAllPoints(swingbar)
@@ -406,6 +452,33 @@ function Swing:ApplySettings()
 		autoremainingtext:SetTextColor(1,1,1)
 		autoremainingtext:SetNonSpaceWrap(false)
 		autoremainingtext:SetWidth(autobar_width)
+
+		local offsetX = -db.iconoffsetx
+		local offsetY = 0
+		Swing:UpdateIcons()
+		swingbaricon:Show()
+		swingbaricon:ClearAllPoints()
+		if db.swingposition == "bottom" then
+			swingbaricon:SetPoint("TOPRIGHT", swingbar, "TOPLEFT", offsetX, offsetY)
+		elseif db.swingposition == "top" then
+			swingbaricon:SetPoint("BOTTOMRIGHT", swingbar, "BOTTOMLEFT", offsetX, offsetY)
+		else
+			swingbaricon:SetPoint("RIGHT", swingbar, "LEFT", offsetX, offsetY)
+		end
+		swingbaricon:SetWidth(db.iconsize)
+		swingbaricon:SetHeight(db.iconsize)
+
+		autobaricon:Show()
+		autobaricon:ClearAllPoints()
+		if db.swingposition == "bottom" then
+			autobaricon:SetPoint("BOTTOMRIGHT", autobar, "BOTTOMLEFT", offsetX, offsetY)
+		elseif db.swingposition == "top" then
+			autobaricon:SetPoint("TOPRIGHT", autobar, "TOPLEFT", offsetX, offsetY)
+		else
+			autobaricon:SetPoint("RIGHT", autobar, "LEFT", offsetX, offsetY)
+		end
+		autobaricon:SetWidth(db.iconsize)
+		autobaricon:SetHeight(db.iconsize)
 
 		if (db.alwaysvisible) then
 			swingbar:Show()
@@ -585,6 +658,26 @@ do
 				name = L["Always Visible"],
 				desc = L["Toggle display of swing bars to always on"],
 				order = 111,
+			},
+			showicon = {
+				type = "toggle",
+				name = L["Enable Icons"],
+				desc = L["Shows weapon icons to differentiate ranged and melee"],
+				order = 114,
+			},
+			iconsize = {
+				type = "range",
+				name = L["Icon Size"],
+				desc = L["Pick the size of the icon"],
+				min = 4, max = 64, step = 1,
+				order = 112,
+			},
+			iconoffsetx = {
+				type = "range",
+				name = L["Icon Offset"],
+				desc = L["Distance between icons and swing bars"],
+				min = 0, max = 64, step = 1,
+				order = 113,
 			},
 		},
 	}
